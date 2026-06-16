@@ -1,0 +1,14 @@
+{
+  "name": "@lety-ai/widget-loader",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Lightweight loader script that injects the Lety chat widget into a host page",
+  "type": "module",
+  "scripts": {
+    "build": "echo \"TODO(LET-2037): bundle widget.js with esbuild\" && exit 0",
+    "dev": "echo \"TODO(LET-2037): watch build\" && exit 0",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo \"TODO: eslint\" && exit 0",
+    "test": "echo \"TODO: tests\" && exit 0"
+  }
+}

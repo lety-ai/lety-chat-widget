@@ -1,0 +1,14 @@
+{
+  "name": "@lety-ai/widget-app",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Standalone iframe chat app rendered inside the embedded Lety widget",
+  "type": "module",
+  "scripts": {
+    "build": "echo \"TODO(LET-2037): build standalone iframe app\" && exit 0",
+    "dev": "echo \"TODO(LET-2037): dev server\" && exit 0",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo \"TODO: eslint\" && exit 0",
+    "test": "echo \"TODO: tests\" && exit 0"
+  }
+}

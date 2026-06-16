@@ -1,0 +1,21 @@
+{
+  "name": "@lety-ai/react",
+  "version": "0.0.0",
+  "description": "React component to embed the Lety chat widget",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "echo \"TODO(LET-2035): build React package\" && exit 0",
+    "dev": "echo \"TODO(LET-2035): watch build\" && exit 0",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo \"TODO: eslint\" && exit 0",
+    "test": "echo \"TODO: tests\" && exit 0"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  }
+}
