@@ -1,21 +1,45 @@
 {
   "name": "@lety-ai/react",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "React component to embed the Lety chat widget",
+  "license": "UNLICENSED",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
-  "files": ["dist"],
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lety-ai/lety-chat-widget.git",
+    "directory": "packages/react"
+  },
   "scripts": {
-    "build": "echo \"TODO(LET-2035): build React package\" && exit 0",
-    "dev": "echo \"TODO(LET-2035): watch build\" && exit 0",
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
     "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build",
     "lint": "echo \"TODO: eslint\" && exit 0",
     "test": "echo \"TODO: tests\" && exit 0"
   },
   "peerDependencies": {
     "react": ">=18",
     "react-dom": ">=18"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "react": "^18.3.1"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
