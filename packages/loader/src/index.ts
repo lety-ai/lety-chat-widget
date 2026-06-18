@@ -2,7 +2,7 @@
 // logic:
 //   1. Script tag:  <script src="https://cdn.lety.ai/widget.js" data-widget-id="w_xxx" async></script>
 //   2. Programmatic: window.LetyWidget.mount({ widgetId }) / window.LetyWidget.unmount()
-//      (used by the @lety-ai/react package).
+//      (used by the @lety-ai/react-widget-chat package).
 //
 // The loader runs on the HOST page, so its fetches to the public widget API
 // carry the real site Origin — that is what enforces the allowed-domains rule.

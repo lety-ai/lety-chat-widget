@@ -8,3 +8,4 @@ build/
 .env.local
 coverage/
 *.tsbuildinfo
+*.tgz

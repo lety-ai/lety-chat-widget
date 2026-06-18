@@ -28,7 +28,7 @@ importers:
         specifier: ^0.24.0
         version: 0.24.2
 
-  packages/react:
+  packages/react-widget-chat:
     dependencies:
       react-dom:
         specifier: '>=18'

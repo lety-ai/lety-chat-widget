@@ -1,13 +1,13 @@
-# @lety-ai/react
+# @lety-ai/react-widget-chat
 
 React component to embed the [Lety](https://lety.ai) chat widget (LET-2035).
 
 ## Install
 
 ```bash
-npm install @lety-ai/react
+npm install @lety-ai/react-widget-chat
 # or
-pnpm add @lety-ai/react
+pnpm add @lety-ai/react-widget-chat
 ```
 
 `react` and `react-dom` (>=18) are peer dependencies.
@@ -15,7 +15,7 @@ pnpm add @lety-ai/react
 ## Usage
 
 ```tsx
-import { LetyWidget } from '@lety-ai/react';
+import { LetyWidget } from '@lety-ai/react-widget-chat';
 
 export default function App() {
   return (

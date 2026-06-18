@@ -10,7 +10,7 @@ client-facing artifacts that run on third-party websites.
 | --- | --- | --- | --- |
 | `@lety-ai/widget-loader` | `packages/loader` | `widget.js` (a few KB) | CDN (`https://cdn.lety.ai/widget.js`) |
 | `@lety-ai/widget-app` | `packages/app` | Standalone iframe chat app | CDN (widget host page) |
-| `@lety-ai/react` | `packages/react` | React component `<LetyWidget />` | npm |
+| `@lety-ai/react-widget-chat` | `packages/react-widget-chat` | React component `<LetyWidget />` | npm |
 
 ## How it fits together
 
