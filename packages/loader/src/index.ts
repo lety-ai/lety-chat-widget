@@ -13,6 +13,7 @@
 
 declare const __LETY_WIDGET_APP_ORIGIN__: string;
 declare const __LETY_API_BASE__: string;
+declare const __LETY_TURNSTILE_SITE_KEY__: string;
 
 interface DisplayConfig {
   assistantName: string;
@@ -45,7 +46,72 @@ interface LetyWidgetApi {
 
 const DEFAULT_APP_ORIGIN = __LETY_WIDGET_APP_ORIGIN__;
 const DEFAULT_API_BASE = __LETY_API_BASE__;
+const TURNSTILE_SITE_KEY = __LETY_TURNSTILE_SITE_KEY__;
 const PUBLIC_PATH = '/api/v1/public/widgets';
+
+const TURNSTILE_SCRIPT =
+  'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+const TURNSTILE_TIMEOUT_MS = 30_000;
+
+type TurnstileApi = {
+  render: (el: HTMLElement, opts: Record<string, unknown>) => void;
+};
+
+let turnstileReady: Promise<void> | null = null;
+
+function loadTurnstile(): Promise<void> {
+  if (turnstileReady) return turnstileReady;
+  turnstileReady = new Promise<void>((resolve, reject) => {
+    const existing = document.querySelector<HTMLScriptElement>(
+      'script[src*="challenges.cloudflare.com/turnstile"]',
+    );
+    if (existing) {
+      if ((window as { turnstile?: TurnstileApi }).turnstile) resolve();
+      else existing.addEventListener('load', () => resolve(), { once: true });
+      return;
+    }
+    const s = document.createElement('script');
+    s.src = TURNSTILE_SCRIPT;
+    s.async = true;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('Turnstile script failed to load'));
+    document.head.appendChild(s);
+  });
+  return turnstileReady;
+}
+
+async function getTurnstileToken(): Promise<string | undefined> {
+  if (!TURNSTILE_SITE_KEY) return undefined;
+  try {
+    await loadTurnstile();
+    return await new Promise<string>((resolve, reject) => {
+      const container = document.createElement('div');
+      container.style.cssText =
+        'position:absolute;visibility:hidden;pointer-events:none;width:0;height:0;overflow:hidden;';
+      document.body.appendChild(container);
+      const timer = setTimeout(() => reject(new Error('Turnstile timeout')), TURNSTILE_TIMEOUT_MS);
+      const done = (fn: () => void) => {
+        clearTimeout(timer);
+        container.remove();
+        fn();
+      };
+      const ts = (window as { turnstile?: TurnstileApi }).turnstile;
+      if (!ts) {
+        done(() => reject(new Error('Turnstile not available')));
+        return;
+      }
+      ts.render(container, {
+        sitekey: TURNSTILE_SITE_KEY,
+        size: 'invisible',
+        callback: (token: string) => done(() => resolve(token)),
+        'error-callback': () => done(() => reject(new Error('Turnstile challenge error'))),
+        'expired-callback': () => done(() => reject(new Error('Turnstile token expired'))),
+      });
+    });
+  } catch {
+    return undefined;
+  }
+}
 
 let teardown: (() => void) | null = null;
 
@@ -107,11 +173,18 @@ function mount(options: MountOptions): void {
 
     const config = (await configRes.json()) as DisplayConfig;
 
+    const turnstileToken = await getTurnstileToken();
+
+    const sessionBody: Record<string, string> = {};
+    const savedVisitorId = readVisitorId(visitorKey);
+    if (savedVisitorId) sessionBody.visitorId = savedVisitorId;
+    if (turnstileToken) sessionBody.turnstileToken = turnstileToken;
+
     const sessionRes = await fetch(`${apiBase}${PUBLIC_PATH}/${widgetId}/session`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ visitorId: readVisitorId(visitorKey) }),
+      body: JSON.stringify(sessionBody),
     });
 
     if (!sessionRes.ok) {
