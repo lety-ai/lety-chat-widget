@@ -153,6 +153,10 @@ function mount(options: MountOptions): void {
     cancelled = true;
   };
 
+  const releaseTeardown = () => {
+    if (!cancelled) teardown = null;
+  };
+
   const boot = async () => {
     const configRes = await fetch(`${apiBase}${PUBLIC_PATH}/${widgetId}/config`, {
       credentials: 'include',
@@ -160,14 +164,17 @@ function mount(options: MountOptions): void {
 
     if (configRes.status === 204) {
       console.warn('Lety widget: this widget is unavailable (disabled or its agent is inactive).');
+      releaseTeardown();
       return;
     }
     if (configRes.status === 403) {
       console.warn(`Lety widget: domain "${location.hostname}" is not allowed for this widget.`);
+      releaseTeardown();
       return;
     }
     if (!configRes.ok) {
       console.warn(`Lety widget: failed to load configuration (${configRes.status}).`);
+      releaseTeardown();
       return;
     }
 
@@ -189,6 +196,7 @@ function mount(options: MountOptions): void {
 
     if (!sessionRes.ok) {
       console.warn(`Lety widget: could not start a session (${sessionRes.status}).`);
+      releaseTeardown();
       return;
     }
 
@@ -196,11 +204,12 @@ function mount(options: MountOptions): void {
     storeVisitorId(visitorKey, session.visitorId);
 
     if (cancelled) return;
-    render(widgetId, appOrigin, config, session);
+    render(widgetId, appOrigin, apiBase, config, session);
   };
 
   void boot().catch((error) => {
     console.warn('Lety widget: failed to initialize.', error);
+    releaseTeardown();
   });
 }
 
@@ -212,6 +221,7 @@ function unmount(): void {
 function render(
   widgetId: string,
   appOrigin: string,
+  apiBase: string,
   config: DisplayConfig,
   session: SessionResponse,
 ): void {
@@ -255,6 +265,7 @@ function render(
   iframe.className = 'lety-panel';
   iframe.title = config.assistantName || 'Chat';
   iframe.allow = 'autoplay';
+  iframe.sandbox.add('allow-scripts', 'allow-same-origin', 'allow-forms', 'allow-popups');
   iframe.src = `${appOrigin}/?widgetId=${encodeURIComponent(widgetId)}&mode=bubble`;
 
   const bubble = document.createElement('button');
@@ -284,13 +295,14 @@ function render(
 
   const onMessage = (event: MessageEvent) => {
     if (event.origin !== appOrigin) return;
+    if (event.source !== iframe.contentWindow) return;
     const data = event.data as { type?: string } | null;
     if (!data?.type) return;
 
     switch (data.type) {
       case 'lety:app-ready':
         iframe.contentWindow?.postMessage(
-          { type: 'lety:bootstrap', config, token: session.token, apiBase: DEFAULT_API_BASE },
+          { type: 'lety:bootstrap', config, token: session.token, apiBase },
           appOrigin,
         );
         if (config.autoOpen) setOpen(true);

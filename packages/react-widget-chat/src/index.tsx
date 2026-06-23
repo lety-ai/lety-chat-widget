@@ -32,7 +32,10 @@ const loadLoader = (src: string): Promise<void> => {
     const existing = document.querySelector<HTMLScriptElement>(`script[${LOADER_MARKER}]`);
     if (existing) {
       existing.addEventListener('load', () => resolve());
-      existing.addEventListener('error', () => reject(new Error('Failed to load Lety widget loader')));
+      existing.addEventListener('error', () => {
+        loaderPromise = null;
+        reject(new Error('Failed to load Lety widget loader'));
+      });
       return;
     }
     const script = document.createElement('script');
