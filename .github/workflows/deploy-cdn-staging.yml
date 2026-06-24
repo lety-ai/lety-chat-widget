@@ -1,0 +1,12 @@
+name: Deploy widget to CDN (staging)
+
+on:
+  push:
+    branches: [staging]
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/deploy-cdn.yml
+    with:
+      environment: staging
+    secrets: inherit

@@ -1,0 +1,80 @@
+name: Deploy widget to CDN
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: read
+    concurrency:
+      group: deploy-cdn-${{ inputs.environment }}
+      cancel-in-progress: true
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build app
+        run: pnpm --filter @lety-ai/widget-app build
+        env:
+          LETY_API_BASE: ${{ vars.LETY_API_BASE }}
+
+      - name: Build loader
+        run: pnpm --filter @lety-ai/loader build
+        env:
+          LETY_API_BASE: ${{ vars.LETY_API_BASE }}
+          LETY_WIDGET_APP_ORIGIN: ${{ vars.CDN_ORIGIN }}/app
+          LETY_TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Upload app (index.html)
+        run: |
+          aws s3 cp packages/app/dist/index.html \
+            s3://${{ vars.S3_BUCKET }}/app/index.html \
+            --cache-control "public, max-age=60" \
+            --acl public-read
+
+      - name: Upload app bundle (main.js)
+        run: |
+          aws s3 cp packages/app/dist/main.js \
+            s3://${{ vars.S3_BUCKET }}/app/main.js \
+            --cache-control "public, max-age=300" \
+            --acl public-read
+
+      - name: Upload loader (widget.js)
+        run: |
+          aws s3 cp packages/loader/dist/widget.js \
+            s3://${{ vars.S3_BUCKET }}/widget.js \
+            --cache-control "public, max-age=300" \
+            --acl public-read
+
+      - name: Purge Cloudflare cache
+        run: |
+          curl -s -X POST \
+            "https://api.cloudflare.com/client/v4/zones/${{ secrets.CF_ZONE_ID }}/purge_cache" \
+            -H "Authorization: Bearer ${{ secrets.CF_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            --data '{"purge_everything":true}' | tee /tmp/cf-purge.json
+          grep -q '"success":true' /tmp/cf-purge.json
