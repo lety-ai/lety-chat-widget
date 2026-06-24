@@ -73,6 +73,7 @@ function loadTurnstile(): Promise<void> {
     const s = document.createElement('script');
     s.src = TURNSTILE_SCRIPT;
     s.async = true;
+    s.crossOrigin = 'anonymous';
     s.onload = () => resolve();
     s.onerror = () => reject(new Error('Turnstile script failed to load'));
     document.head.appendChild(s);
@@ -293,6 +294,8 @@ function render(
 
   bubble.addEventListener('click', () => setOpen(!open));
 
+  let tokenRef = session.token;
+
   const onMessage = (event: MessageEvent) => {
     if (event.origin !== appOrigin) return;
     if (event.source !== iframe.contentWindow) return;
@@ -302,7 +305,7 @@ function render(
     switch (data.type) {
       case 'lety:app-ready':
         iframe.contentWindow?.postMessage(
-          { type: 'lety:bootstrap', config, token: session.token, apiBase },
+          { type: 'lety:bootstrap', config, token: tokenRef, apiBase },
           appOrigin,
         );
         if (config.autoOpen) setOpen(true);
@@ -322,6 +325,7 @@ function render(
   teardown = () => {
     window.removeEventListener('message', onMessage);
     host.remove();
+    tokenRef = '';
   };
 }
 

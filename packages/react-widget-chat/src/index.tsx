@@ -21,19 +21,20 @@ declare global {
 const DEFAULT_SCRIPT_URL = 'https://cdn.lety.ai/widget.js';
 const LOADER_MARKER = 'data-lety-loader';
 
-let loaderPromise: Promise<void> | null = null;
+const loaderPromises = new Map<string, Promise<void>>();
 
 const loadLoader = (src: string): Promise<void> => {
   if (typeof window === 'undefined' || typeof document === 'undefined') return Promise.resolve();
   if (window.LetyWidget) return Promise.resolve();
-  if (loaderPromise) return loaderPromise;
+  const cached = loaderPromises.get(src);
+  if (cached) return cached;
 
-  loaderPromise = new Promise<void>((resolve, reject) => {
+  const promise = new Promise<void>((resolve, reject) => {
     const existing = document.querySelector<HTMLScriptElement>(`script[${LOADER_MARKER}]`);
     if (existing) {
       existing.addEventListener('load', () => resolve());
       existing.addEventListener('error', () => {
-        loaderPromise = null;
+        loaderPromises.delete(src);
         reject(new Error('Failed to load Lety widget loader'));
       });
       return;
@@ -44,13 +45,14 @@ const loadLoader = (src: string): Promise<void> => {
     script.setAttribute(LOADER_MARKER, '');
     script.addEventListener('load', () => resolve());
     script.addEventListener('error', () => {
-      loaderPromise = null;
+      loaderPromises.delete(src);
       reject(new Error('Failed to load Lety widget loader'));
     });
     document.head.appendChild(script);
   });
 
-  return loaderPromise;
+  loaderPromises.set(src, promise);
+  return promise;
 };
 
 /**
