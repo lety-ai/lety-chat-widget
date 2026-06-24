@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lety widget — Script embed test</title>
+    <style>
+      body { font-family: system-ui, sans-serif; padding: 40px; max-width: 640px; margin: 0 auto; }
+      code { background: #f1f1f3; padding: 2px 6px; border-radius: 4px; }
+    </style>
+  </head>
+  <body>
+    <h1>Script embed test</h1>
+    <p>The floating chat bubble should appear in the bottom corner.</p>
+    <p>Open the browser console to see clear messages for blocked cases.</p>
+
+    <!-- Replace WIDGET_ID. In local testing widget.js is served by the app origin. -->
+    <script
+      src="http://localhost:5173/widget.js"
+      data-widget-id="WIDGET_ID"
+      async
+    ></script>
+  </body>
+</html>

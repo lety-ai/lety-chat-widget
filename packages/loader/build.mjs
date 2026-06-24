@@ -2,6 +2,7 @@ import esbuild from 'esbuild';
 
 const appOrigin = process.env.LETY_WIDGET_APP_ORIGIN || 'https://cdn.lety.ai';
 const apiBase = process.env.LETY_API_BASE || 'https://api.lety.ai';
+const turnstileSiteKey = process.env.TURNSTILE_SITE_KEY || '';
 const watch = process.argv.includes('--watch');
 
 /** @type {import('esbuild').BuildOptions} */
@@ -15,6 +16,7 @@ const options = {
   define: {
     __LETY_WIDGET_APP_ORIGIN__: JSON.stringify(appOrigin),
     __LETY_API_BASE__: JSON.stringify(apiBase),
+    __LETY_TURNSTILE_SITE_KEY__: JSON.stringify(turnstileSiteKey),
   },
   logLevel: 'info',
 };
