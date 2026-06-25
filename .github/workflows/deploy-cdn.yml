@@ -36,7 +36,7 @@ jobs:
           LETY_API_BASE: ${{ vars.LETY_API_BASE }}
 
       - name: Build loader
-        run: pnpm --filter @lety-ai/loader build
+        run: pnpm --filter @lety-ai/widget-loader build
         env:
           LETY_API_BASE: ${{ vars.LETY_API_BASE }}
           LETY_WIDGET_APP_ORIGIN: ${{ vars.CDN_ORIGIN }}/app
