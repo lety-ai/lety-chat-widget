@@ -146,6 +146,7 @@ function mount(options: MountOptions): void {
 
   const apiBase = options.apiBase || DEFAULT_API_BASE;
   const appOrigin = options.appOrigin || DEFAULT_APP_ORIGIN;
+  const appOriginBase = new URL(appOrigin).origin;
   const visitorKey = visitorKeyFor(widgetId);
 
   let cancelled = false;
@@ -205,7 +206,7 @@ function mount(options: MountOptions): void {
     storeVisitorId(visitorKey, session.visitorId);
 
     if (cancelled) return;
-    render(widgetId, appOrigin, apiBase, config, session);
+    render(widgetId, appOrigin, appOriginBase, apiBase, config, session);
   };
 
   void boot().catch((error) => {
@@ -222,6 +223,7 @@ function unmount(): void {
 function render(
   widgetId: string,
   appOrigin: string,
+  appOriginBase: string,
   apiBase: string,
   config: DisplayConfig,
   session: SessionResponse,
@@ -289,7 +291,7 @@ function render(
     open = value;
     iframe.classList.toggle('open', value);
     if (value) bubble.classList.remove('has-unread');
-    iframe.contentWindow?.postMessage({ type: 'lety:visibility', open: value }, appOrigin);
+    iframe.contentWindow?.postMessage({ type: 'lety:visibility', open: value }, appOriginBase);
   };
 
   bubble.addEventListener('click', () => setOpen(!open));
@@ -297,7 +299,7 @@ function render(
   let tokenRef = session.token;
 
   const onMessage = (event: MessageEvent) => {
-    if (event.origin !== appOrigin) return;
+    if (event.origin !== appOriginBase) return;
     if (event.source !== iframe.contentWindow) return;
     const data = event.data as { type?: string } | null;
     if (!data?.type) return;
@@ -306,7 +308,7 @@ function render(
       case 'lety:app-ready':
         iframe.contentWindow?.postMessage(
           { type: 'lety:bootstrap', config, token: tokenRef, apiBase },
-          appOrigin,
+          appOriginBase,
         );
         if (config.autoOpen) setOpen(true);
         break;
