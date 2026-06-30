@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lety widget — Iframe embed test</title>
+    <style>
+      body { font-family: system-ui, sans-serif; padding: 40px; }
+      iframe { border: none; border-radius: 16px; box-shadow: 0 12px 40px rgba(0,0,0,.18); }
+    </style>
+  </head>
+  <body>
+    <h1>Iframe embed test</h1>
+    <p>The chat renders inline below (no floating bubble).</p>
+
+    <!-- Replace WIDGET_ID -->
+    <iframe
+      src="http://localhost:5173/?widgetId=WIDGET_ID"
+      width="400"
+      height="600"
+    ></iframe>
+  </body>
+</html>

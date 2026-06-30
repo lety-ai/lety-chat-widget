@@ -17,7 +17,7 @@ websites, so bundle size, isolation from the host page, and security matter.
   config, renders branding/colors/texts/position, handles auto-open and the single fixed
   notification sound, talks to the `widget-chat` WebSocket namespace. Visitor identity in
   `localStorage` of the iframe origin.
-- `packages/react` — `@lety-ai/react`, `<LetyWidget widgetId="w_xxx" />`. Uses the loader
+- `packages/react-widget-chat` — `@lety-ai/react-widget-chat`, `<LetyWidget widgetId="w_xxx" />`. Uses the loader
   under the hood; single instance even if mounted twice; clean unmount.
 
 ## Conventions
