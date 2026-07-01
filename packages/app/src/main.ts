@@ -189,7 +189,8 @@ const connect = (apiBase: string, token: string) => {
     auth: { token },
   });
 
-  socket.on('connect_error', () => {
+  socket.on('connect_error', (err: Error) => {
+    console.error('Lety widget connect_error:', err?.message, err);
     appendMessage({ id: genId(), role: 'system', text: 'Connection error. Please try again.' });
   });
 
