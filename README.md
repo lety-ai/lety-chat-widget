@@ -35,3 +35,31 @@ pnpm build      # build all packages
 
 Implements LET-2037 (loader + iframe app) and LET-2035 (React package),
 sub-issues of LET-1993.
+
+## Publishing `@lety-ai/react-widget-chat` to npm
+
+The React package is published by the `Publish @lety-ai/react-widget-chat to npm`
+workflow (`.github/workflows/publish-npm.yml`). It needs, one time only:
+
+1. The `lety-ai` organization on npmjs.com (owner of the `@lety-ai` scope).
+2. A granular access token with **read and write** permission on the `@lety-ai`
+   scope, stored as the `NPM_TOKEN` secret of the `production` environment.
+
+To release a new version:
+
+1. Bump the version in `packages/react-widget-chat/package.json` in a regular PR
+   (`npm version <patch|minor|major> --no-git-tag-version`) and let it ride the
+   normal `develop` → `staging` → `master` release flow.
+2. Once it is on `master`, tag the merge commit there:
+
+```bash
+git checkout master && git pull
+git tag react-widget-chat@vX.Y.Z
+git push origin react-widget-chat@vX.Y.Z
+```
+
+Pushing the tag runs the workflow, which fails if the tagged commit is not on
+`master` or if the tag and `package.json` versions differ, and skips the publish
+if that version is already on npm. Tag creation for `react-widget-chat@v*` is
+restricted to repository admins and maintainers by the `protect-npm-release-tags` tag ruleset. The workflow
+can also be run manually from the Actions tab (from `master` only).
