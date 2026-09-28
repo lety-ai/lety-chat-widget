@@ -2,7 +2,7 @@
   "name": "@lety-ai/react-widget-chat",
   "version": "0.1.0",
   "description": "React component to embed the Lety chat widget",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -16,7 +16,8 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "repository": {
     "type": "git",
