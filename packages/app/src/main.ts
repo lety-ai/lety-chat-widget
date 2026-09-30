@@ -1,6 +1,6 @@
 import { io, Socket } from 'socket.io-client';
 
-import { API_BASE, createSession, fetchConfig } from './api';
+import { API_BASE, createSession, fetchConfig, resolveEmbedOrigin } from './api';
 import { playNotificationSound } from './sound';
 import { Bootstrap, ChatMessage, ChatRole, DisplayConfig } from './types';
 
@@ -220,13 +220,22 @@ const init = (cfg: DisplayConfig, apiBase: string, token: string) => {
 
 const bootInline = async () => {
   if (!widgetId) return blocked('missing widgetId.');
-  const result = await fetchConfig(API_BASE, widgetId);
+  const embedded = window.self !== window.top;
+  const embedOrigin = resolveEmbedOrigin();
+  if (embedded && !embedOrigin) {
+    return blocked(
+      'the embedding page did not share its origin; the iframe needs a referrer policy that sends the origin.',
+    );
+  }
+  const embedHost = embedOrigin ? new URL(embedOrigin).hostname : location.hostname;
+
+  const result = await fetchConfig(API_BASE, widgetId, embedOrigin);
   if (result.status === 'unavailable') return blocked('widget is unavailable.');
   if (result.status === 'forbidden')
-    return blocked(`domain "${location.hostname}" is not allowed for this widget.`);
+    return blocked(`domain "${embedHost}" is not allowed for this widget.`);
   if (result.status === 'error') return blocked('failed to load configuration.');
 
-  const session = await createSession(API_BASE, widgetId, readVisitorId());
+  const session = await createSession(API_BASE, widgetId, readVisitorId(), embedOrigin);
   if (!session) return blocked('could not start a session.');
   storeVisitorId(session.visitorId);
   init(result.config, API_BASE, session.token);
