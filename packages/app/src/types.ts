@@ -24,8 +24,16 @@ export interface Bootstrap {
 
 export type ChatRole = 'user' | 'agent' | 'system';
 
+export type MessageStatus = 'sending' | 'sent' | 'failed';
+
 export interface ChatMessage {
   id: string;
   role: ChatRole;
   text: string;
+  status?: MessageStatus;
+}
+
+export interface MessageAck {
+  ok: boolean;
+  error?: string;
 }

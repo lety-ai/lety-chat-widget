@@ -2,16 +2,21 @@ import { io, Socket } from 'socket.io-client';
 
 import { API_BASE, createSession, fetchConfig, resolveEmbedOrigin } from './api';
 import { playNotificationSound } from './sound';
-import { Bootstrap, ChatMessage, ChatRole, DisplayConfig } from './types';
+import { Bootstrap, ChatMessage, ChatRole, DisplayConfig, MessageAck } from './types';
 
 const params = new URLSearchParams(location.search);
 const widgetId = params.get('widgetId') ?? '';
 const mode = params.get('mode') === 'bubble' ? 'bubble' : 'inline';
 const PARENT = '*';
+const SEND_TIMEOUT_MS = 15_000;
 
 let socket: Socket | null = null;
 let config: DisplayConfig | null = null;
 let visible = mode === 'inline';
+let welcome: ChatMessage | null = null;
+let history: ChatMessage[] = [];
+let live: ChatMessage[] = [];
+let knownVisitorMessages: number | null = null;
 
 const genId = (): string =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -61,6 +66,8 @@ const els = {
   root: document.createElement('div'),
   messages: null as HTMLDivElement | null,
   input: null as HTMLTextAreaElement | null,
+  status: null as HTMLDivElement | null,
+  banner: null as HTMLDivElement | null,
 };
 
 const renderShell = () => {
@@ -81,6 +88,13 @@ const renderShell = () => {
     .lety-msg.user { align-self:flex-end; background:var(--lety-primary); color:#fff; border-bottom-right-radius:4px; }
     .lety-msg.agent { align-self:flex-start; background:#f1f1f3; color:var(--lety-text); border-bottom-left-radius:4px; }
     .lety-msg.system { align-self:center; background:#fef2f2; color:#b91c1c; font-size:12px; }
+    .lety-msg.sending { opacity:.6; }
+    .lety-failed { align-self:flex-end; max-width:80%; display:flex; flex-direction:column; align-items:flex-end; gap:4px; }
+    .lety-failed .lety-msg { max-width:100%; opacity:.6; }
+    .lety-retry { border:none; background:none; padding:0; font:inherit; font-size:11px; color:#b91c1c; cursor:pointer; }
+    .lety-retry:hover { text-decoration:underline; }
+    .lety-banner { display:none; padding:6px 12px; background:#fef2f2; color:#b91c1c; font-size:12px; text-align:center; }
+    .lety-banner.show { display:block; }
     .lety-form { display:flex; gap:8px; padding:10px 12px; border-top:1px solid #ececf0; }
     .lety-input { flex:1; resize:none; border:1px solid #e2e2e6; border-radius:10px; padding:8px 10px; font:inherit; font-size:13px; max-height:96px; }
     .lety-input:focus { outline:none; border-color:var(--lety-primary); }
@@ -94,11 +108,12 @@ const renderShell = () => {
       <span class="lety-avatar" data-avatar></span>
       <div>
         <div class="lety-title" data-title>Assistant</div>
-        <div class="lety-status">Online</div>
+        <div class="lety-status" data-status>Connecting...</div>
       </div>
       <button class="lety-close" data-close aria-label="Close">×</button>
     </div>
     <div class="lety-messages" data-messages></div>
+    <div class="lety-banner" data-banner role="status"></div>
     <form class="lety-form" data-form>
       <textarea class="lety-input" data-input rows="1" placeholder="Type your message..."></textarea>
       <button class="lety-send" type="submit" aria-label="Send">
@@ -112,6 +127,8 @@ const renderShell = () => {
 
   els.messages = els.root.querySelector<HTMLDivElement>('[data-messages]');
   els.input = els.root.querySelector<HTMLTextAreaElement>('[data-input]');
+  els.status = els.root.querySelector<HTMLDivElement>('[data-status]');
+  els.banner = els.root.querySelector<HTMLDivElement>('[data-banner]');
 
   els.root.querySelector('[data-close]')?.addEventListener('click', () => {
     if (mode === 'bubble') parent.postMessage({ type: 'lety:close' }, PARENT);
@@ -148,18 +165,95 @@ const applyConfig = (cfg: DisplayConfig) => {
   }
   if (els.input) els.input.placeholder = cfg.inputPlaceholder;
 
-  if (cfg.welcomeMessage) {
-    appendMessage({ id: genId(), role: 'agent', text: cfg.welcomeMessage });
-  }
+  welcome = cfg.welcomeMessage
+    ? { id: genId(), role: 'agent', text: cfg.welcomeMessage }
+    : null;
+  render();
+};
+
+const buildNode = (message: ChatMessage): HTMLElement => {
+  const bubble = document.createElement('div');
+  bubble.className = `lety-msg ${message.role}`;
+  bubble.textContent = message.text;
+  if (message.status === 'sending') bubble.classList.add('sending');
+  if (message.status !== 'failed') return bubble;
+
+  const retry = document.createElement('button');
+  retry.type = 'button';
+  retry.className = 'lety-retry';
+  retry.textContent = 'Not delivered. Tap to retry';
+  retry.addEventListener('click', () => deliver(message));
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'lety-failed';
+  wrapper.append(bubble, retry);
+  return wrapper;
+};
+
+const render = () => {
+  if (!els.messages) return;
+  const messages = [...(welcome ? [welcome] : []), ...history, ...live];
+  els.messages.replaceChildren(...messages.map(buildNode));
+  els.messages.scrollTop = els.messages.scrollHeight;
 };
 
 const appendMessage = (message: ChatMessage) => {
-  if (!els.messages) return;
-  const node = document.createElement('div');
-  node.className = `lety-msg ${message.role}`;
-  node.textContent = message.text;
-  els.messages.appendChild(node);
-  els.messages.scrollTop = els.messages.scrollHeight;
+  live.push(message);
+  render();
+};
+
+const applyHistory = (items: unknown[]) => {
+  const next: ChatMessage[] = [];
+  for (const item of items) {
+    const text = extractText(item);
+    if (!text) continue;
+    const role = roleFromType((item as Record<string, unknown>)?.type);
+    next.push({ id: genId(), role, text });
+  }
+
+  const visitorTexts = next.filter((m) => m.role === 'user').map((m) => m.text);
+  const arrived = knownVisitorMessages === null ? [] : visitorTexts.slice(knownVisitorMessages);
+  live = live.filter((message) => {
+    if (!message.status) return false;
+    const index = arrived.indexOf(message.text);
+    if (index === -1) return true;
+    arrived.splice(index, 1);
+    return false;
+  });
+
+  knownVisitorMessages = visitorTexts.length;
+  history = next;
+  render();
+};
+
+const refreshConnection = () => {
+  const online = Boolean(socket?.connected) && navigator.onLine !== false;
+  const recovering = !socket || socket.active || navigator.onLine === false;
+  if (els.status) {
+    els.status.textContent = online ? 'Online' : recovering ? 'Reconnecting...' : 'Offline';
+  }
+  if (els.banner) {
+    els.banner.textContent = recovering
+      ? 'Connection lost. Reconnecting...'
+      : 'Connection lost. Please reload the page.';
+    els.banner.classList.toggle('show', !online);
+  }
+};
+
+const deliver = (message: ChatMessage) => {
+  if (!socket || message.status === 'sending') return;
+  message.status = 'sending';
+  render();
+  socket
+    .timeout(SEND_TIMEOUT_MS)
+    .emit(
+      'message',
+      { message: message.text, clientMessageId: message.id },
+      (error: Error | null, ack?: MessageAck) => {
+        message.status = !error && ack?.ok !== false ? 'sent' : 'failed';
+        render();
+      },
+    );
 };
 
 const handleIncoming = (payload: unknown, fallbackRole: ChatRole) => {
@@ -178,8 +272,9 @@ const handleIncoming = (payload: unknown, fallbackRole: ChatRole) => {
 const send = () => {
   const value = els.input?.value.trim();
   if (!value || !socket) return;
-  appendMessage({ id: genId(), role: 'user', text: value });
-  socket.emit('message', { message: value });
+  const message: ChatMessage = { id: genId(), role: 'user', text: value };
+  live.push(message);
+  deliver(message);
   if (els.input) els.input.value = '';
 };
 
@@ -189,19 +284,17 @@ const connect = (apiBase: string, token: string) => {
     auth: { token },
   });
 
+  socket.on('connect', refreshConnection);
+  socket.on('disconnect', refreshConnection);
   socket.on('connect_error', (err: Error) => {
     console.error('Lety widget connect_error:', err?.message, err);
-    appendMessage({ id: genId(), role: 'system', text: 'Connection error. Please try again.' });
+    refreshConnection();
   });
+  window.addEventListener('online', refreshConnection);
+  window.addEventListener('offline', refreshConnection);
 
   socket.on('chatHistory', (messages: unknown[]) => {
-    if (!Array.isArray(messages)) return;
-    for (const item of messages) {
-      const text = extractText(item);
-      if (!text) continue;
-      const role = roleFromType((item as Record<string, unknown>)?.type);
-      appendMessage({ id: genId(), role, text });
-    }
+    if (Array.isArray(messages)) applyHistory(messages);
   });
 
   socket.on('agentResponse', (payload: unknown) => handleIncoming(payload, 'agent'));
